@@ -42,12 +42,12 @@ variable "db-identifier" {
 }
 
 variable "dbusername" {
-  default = "dbadmin"
+  default = ""
   
 }
 
 variable "dbpassword" {
-  default = "dbpassword"
+  default = ""
 }
 
 variable "dbname" {
@@ -59,7 +59,7 @@ variable "mysqlport" {
 }
 
 variable "newrelic_account_id" {
-  default = "5144160"
+  default = ""
 }
 
 variable "newrelic_api_key" {
