@@ -1,5 +1,6 @@
 newrelic_license_key = ""
 private_key_path = "~/.ssh/id_rsa"
+name             = "pet"
 redhat           = "ami-0e52c20969b866e86"
 vpc_cidr         = "10.0.0.0/16"
 pubsub1          = "10.0.1.0/24"

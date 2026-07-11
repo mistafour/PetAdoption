@@ -1,3 +1,5 @@
+variable "name" {}
+
 variable "domain_name" {
   type = string
 }
@@ -31,3 +33,35 @@ variable "docker_port" {}
 variable "dockertls_port" {}
 variable "nexus_port" {}
 variable "mysql_port" {}
+
+variable "newrelicfile" {
+  default = "./newrelic.yml"
+}
+variable "db-identifier" {
+  default = "db-identifier"
+}
+
+variable "dbusername" {
+  default = ""
+  
+}
+
+variable "dbpassword" {
+  default = ""
+}
+
+variable "dbname" {
+  default = "petclinic"
+}
+
+variable "mysqlport" {
+  default = 3306
+}
+
+variable "newrelic_account_id" {
+  default = ""
+}
+
+variable "newrelic_api_key" {
+  default = ""
+}
