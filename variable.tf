@@ -63,5 +63,5 @@ variable "newrelic_account_id" {
 }
 
 variable "newrelic_api_key" {
-  default = "NRAK-9R11142QWU2YHZ60A2W8A0AJ8IO"
+  default = ""
 }
