@@ -1,5 +1,5 @@
 locals {
-  name = "pet"
+  name = "var.name"
 }
 
 #Creating a VPC
