@@ -33,3 +33,35 @@ variable "docker_port" {}
 variable "dockertls_port" {}
 variable "nexus_port" {}
 variable "mysql_port" {}
+
+variable "newrelicfile" {
+  default = "./newrelic.yml"
+}
+variable "db-identifier" {
+  default = "db-identifier"
+}
+
+variable "dbusername" {
+  default = "dbadmin"
+  
+}
+
+variable "dbpassword" {
+  default = "dbpassword"
+}
+
+variable "dbname" {
+  default = "petclinic"
+}
+
+variable "mysqlport" {
+  default = 3306
+}
+
+variable "newrelic_account_id" {
+  default = "5144160"
+}
+
+variable "newrelic_api_key" {
+  default = "NRAK-9R11142QWU2YHZ60A2W8A0AJ8IO"
+}
