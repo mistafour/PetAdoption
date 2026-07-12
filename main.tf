@@ -504,7 +504,6 @@ resource "aws_instance" "pet-docker-server" {
   }
 }
 
-#creating nexus server
 # Creating Nexus server
 resource "aws_instance" "nexus" {
   ami                         = var.redhat
