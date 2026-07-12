@@ -422,3 +422,103 @@ resource "aws_security_group" "pet_rds_sg" {
     Name = "${local.name}-rds-sg"
   }
 }
+#creating ansible server 
+resource "aws_instance" "pet-ansible_server" {
+  ami                         = var.redhat
+  instance_type               = "t2.micro"
+  key_name                    = aws_key_pair.pet_key.id
+  vpc_security_group_ids      = [aws_security_group.pet_ansible_bastion_sg.id]
+  subnet_id                   = aws_subnet.pet-prisub-1.id
+  associate_public_ip_address = true
+
+  user_data = local.ansible_user_data
+
+  tags = {
+    Name = "${local.name}-ansible_server"
+  }
+}
+
+
+# Creating Jenkins server
+resource "aws_instance" "pet-jenkins" {
+  ami                         = var.redhat #redhat instance
+  instance_type               = "t3.medium"
+  key_name                    = aws_key_pair.pet_key.id
+  vpc_security_group_ids      = [aws_security_group.pet_jenkins_sg.id]
+  subnet_id                   = aws_subnet.pet-pubsub-2.id
+  associate_public_ip_address = true
+
+  user_data = local.jenkins_script
+
+  tags = {
+    Name = "${local.name}-jenkins-server"
+  }
+}
+
+
+#creating bastion server
+resource "aws_instance" "pet-bastion_server" {
+  ami                         = var.redhat
+  instance_type               = "t2.micro"
+  key_name                    = aws_key_pair.pet_key.id
+  vpc_security_group_ids      = [aws_security_group.pet_ansible_bastion_sg.id]
+  subnet_id                   = aws_subnet.pet-pubsub-2.id
+  associate_public_ip_address = true
+
+  user_data = local.bastion_user_data
+
+  tags = {
+    Name = "${local.name}-bastion_server"
+  }
+}
+
+# SonarQube Server
+resource "aws_instance" "pet-sonarqube" {
+  ami                         = var.ubuntu # Use Ubuntu AMI
+  instance_type               = "t2.medium"
+  key_name                    = aws_key_pair.pet_key.id
+  vpc_security_group_ids      = [aws_security_group.pet_sonarqube_sg.id]
+  subnet_id                   = aws_subnet.pet-pubsub-1.id
+  associate_public_ip_address = true
+
+  user_data = local.sonarqube_user_data
+
+  tags = {
+    Name = "${local.name}-sonarqube-server"
+  }
+}
+
+#creating docker host
+resource "aws_instance" "pet-docker-server" {
+  ami                         = var.ubuntu # Use Ubuntu AMI
+  instance_type               = "t2.medium"
+  key_name                    = aws_key_pair.pet_key.id
+  vpc_security_group_ids      = [aws_security_group.pet_docker_sg.id]
+  subnet_id                   = aws_subnet.pet-prisub-1.id
+  associate_public_ip_address = true
+
+  user_data = local.docker_user_data
+
+  tags = {
+    Name = "${local.name}-docker-server"
+  }
+}
+
+#creating nexus server
+# Creating Nexus server
+resource "aws_instance" "nexus" {
+  ami                         = var.redhat
+  instance_type               = "t2.medium"
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.pet_nexus_sg.id]
+  subnet_id                   = aws_subnet.pet-pubsub-1.id
+  key_name                    = aws_key_pair.pet_key.id
+  user_data                   = local.nexus_user_data
+  metadata_options {
+    http_tokens = "required"
+  }
+  tags = {
+    Name = "${local.name}-nexus"
+  }
+}
+
