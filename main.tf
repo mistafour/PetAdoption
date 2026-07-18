@@ -688,3 +688,228 @@ resource "aws_lb_listener" "pet-lb-listener" {
     target_group_arn = aws_lb_target_group.target-group-lb-HTTP.arn
   }
 }
+# ACM Certificate for pet domain
+resource "aws_acm_certificate" "pet_certificate" {
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
+  validation_method         = "DNS"
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+#creating stage elb
+
+resource "aws_elb" "elb-jenkins" {
+
+name = "elb-jenkins"
+
+security_groups = [aws_security_group.pet_jenkins_sg.id]
+
+subnets = [aws_subnet.pet-pubsub-1.id, aws_subnet.pet-pubsub-2.id]
+
+
+ listener {
+
+instance_port = 8080
+
+instance_protocol = "http"
+
+lb_port = 443
+
+lb_protocol = "https"
+
+ssl_certificate_id = aws_acm_certificate.pet_certificate.arn
+
+ }
+
+
+
+health_check {
+
+healthy_threshold = 2
+
+unhealthy_threshold = 2
+
+timeout = 3
+
+target = "tcp:8080"
+
+interval = 30
+
+ }
+
+
+
+instances = [aws_instance.pet-jenkins.id]
+
+cross_zone_load_balancing  = true
+
+idle_timeout = 400
+
+connection_draining = true
+
+connection_draining_timeout = 400
+
+ tags = {
+
+Name = "elb-jenkins"
+
+ }
+
+}
+
+# Creating ELB for Nexus
+resource "aws_elb" "elb-nexus" {
+  name = "elb-nexus"
+
+  security_groups = [aws_security_group.pet_nexus_sg.id]
+
+  subnets = [
+    aws_subnet.pet-pubsub-1.id,
+    aws_subnet.pet-pubsub-2.id
+  ]
+
+  listener {
+    instance_port      = var.nexus_port
+    instance_protocol  = "http"
+    lb_port            = 443
+    lb_protocol        = "https"
+    ssl_certificate_id = aws_acm_certificate.pet_certificate.arn
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "TCP:${var.nexus_port}"
+    interval            = 30
+  }
+
+  instances = [aws_instance.nexus.id]
+
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+  tags = {
+    Name = "elb-nexus"
+  }
+}
+
+# Creating ELB for SonarQube
+resource "aws_elb" "elb-sonarqube" {
+  name = "elb-sonarqube"
+
+  security_groups = [aws_security_group.pet_sonarqube_sg.id]
+
+  subnets = [
+    aws_subnet.pet-pubsub-1.id,
+    aws_subnet.pet-pubsub-2.id
+  ]
+
+  listener {
+    instance_port      = var.sonar_port
+    instance_protocol  = "http"
+    lb_port            = 443
+    lb_protocol        = "https"
+    ssl_certificate_id = aws_acm_certificate.pet_certificate.arn
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "TCP:${var.sonar_port}"
+    interval            = 30
+  }
+
+  instances = [aws_instance.pet-sonarqube.id]
+
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+  tags = {
+    Name = "elb-sonarqube"
+  }
+}
+
+# Creating record set in Route53 for Domain Validation
+resource "aws_route53_record" "pet_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.pet_certificate.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  type            = each.value.type
+  ttl             = 60
+  zone_id         = data.aws_route53_zone.pet_zone.zone_id
+}
+
+# ACM certificate validation for pet
+resource "aws_acm_certificate_validation" "pet_cert_validation" {
+  certificate_arn         = aws_acm_certificate.pet_certificate.arn
+  validation_record_fqdns = [for record in aws_route53_record.pet_cert_validation : record.fqdn]
+}
+
+#Creating Route53 hosted zone for pet domain
+data "aws_route53_zone" "pet_zone" {
+  name         = var.domain_name
+  private_zone = false
+}
+
+ 
+# Route 53 A records for each server as subdomains
+resource "aws_route53_record" "jenkins" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "jenkins.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb-jenkins.dns_name
+    zone_id                = aws_elb.elb-jenkins.zone_id
+    evaluate_target_health = true
+  }
+}
+ 
+ 
+resource "aws_route53_record" "sonarqube" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "sonarqube.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb-sonarqube.dns_name
+    zone_id                = aws_elb.elb-sonarqube.zone_id
+    evaluate_target_health = true
+  }
+}
+ 
+resource "aws_route53_record" "docker" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "docker.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_lb.pet-app-lb.dns_name
+    zone_id                = aws_lb.pet-app-lb.zone_id
+    evaluate_target_health = true
+  }
+}
+ 
+resource "aws_route53_record" "nexus" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "nexus.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb-nexus.dns_name
+    zone_id                = aws_elb.elb-nexus.zone_id
+    evaluate_target_health = true
+  }
+}
+
