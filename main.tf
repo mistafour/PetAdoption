@@ -836,3 +836,80 @@ resource "aws_elb" "elb-sonarqube" {
     Name = "elb-sonarqube"
   }
 }
+
+# Creating record set in Route53 for Domain Validation
+resource "aws_route53_record" "pet_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.pet_certificate.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  type            = each.value.type
+  ttl             = 60
+  zone_id         = data.aws_route53_zone.pet_zone.zone_id
+}
+
+# ACM certificate validation for pet
+resource "aws_acm_certificate_validation" "pet_cert_validation" {
+  certificate_arn         = aws_acm_certificate.pet_certificate.arn
+  validation_record_fqdns = [for record in aws_route53_record.pet_cert_validation : record.fqdn]
+}
+
+#Creating Route53 hosted zone for pet domain
+data "aws_route53_zone" "pet_zone" {
+  name         = var.domain_name
+  private_zone = false
+}
+
+ 
+# Route 53 A records for each server as subdomains
+resource "aws_route53_record" "jenkins" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "jenkins.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb-jenkins.dns_name
+    zone_id                = aws_elb.elb-jenkins.zone_id
+    evaluate_target_health = true
+  }
+}
+ 
+ 
+resource "aws_route53_record" "sonarqube" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "sonarqube.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb-sonarqube.dns_name
+    zone_id                = aws_elb.elb-sonarqube.zone_id
+    evaluate_target_health = true
+  }
+}
+ 
+resource "aws_route53_record" "docker" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "docker.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_lb.pet-app-lb.dns_name
+    zone_id                = aws_lb.pet-app-lb.zone_id
+    evaluate_target_health = true
+  }
+}
+ 
+resource "aws_route53_record" "nexus" {
+  zone_id = data.aws_route53_zone.pet_zone.zone_id
+  name    = "nexus.gatsby-devops.com"
+  type    = "A"
+  alias {
+    name                   = aws_elb.elb-nexus.dns_name
+    zone_id                = aws_elb.elb-nexus.zone_id
+    evaluate_target_health = true
+  }
+}
+
