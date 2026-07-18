@@ -643,3 +643,48 @@ resource "aws_iam_role" "iam-role1" {
     ]
   })
 }
+
+#auto scaling policy
+resource "aws_autoscaling_policy" "pet-asg-policy" {
+  name               = "scale-out-policy"
+  scaling_adjustment = 1
+  adjustment_type    = "ChangeInCapacity"
+  cooldown           = 300
+
+  autoscaling_group_name = aws_autoscaling_group.pet-asg.name
+}
+
+# Autoscaling group
+resource "aws_autoscaling_group" "pet-asg" {
+  name                      = "pet-asg"
+  desired_capacity          = 2
+  max_size                  = 5
+  min_size                  = 1
+  health_check_grace_period = 300
+  health_check_type         = "EC2"
+  force_delete              = true
+
+  launch_template {
+    id      = aws_launch_template.pet-app-lt.id
+    version = "$Latest"
+  }
+
+  vpc_zone_identifier = [
+    aws_subnet.pet-prisub-1.id,
+    aws_subnet.pet-prisub-2.id
+  ]
+
+  target_group_arns = [aws_lb_target_group.target-group-lb-HTTP.arn, aws_lb_target_group.target-group-lb-HTTPS.arn]
+}
+
+#load balancer listener
+resource "aws_lb_listener" "pet-lb-listener" {
+  load_balancer_arn = aws_lb.pet-app-lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.target-group-lb-HTTP.arn
+  }
+}
