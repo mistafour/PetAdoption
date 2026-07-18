@@ -913,3 +913,72 @@ resource "aws_route53_record" "nexus" {
   }
 }
 
+# Creating secreets manager
+resource "aws_secretsmanager_secret" "mysql-secret" {
+  name                    = "mysql-secreet1"
+  recovery_window_in_days = 0
+}
+
+data "aws_secretsmanager_random_password" "db-password" {
+  password_length     = 10
+  exclude_punctuation = true
+}
+
+resource "aws_secretsmanager_secret_version" "dbase-secret" {
+  secret_id     = aws_secretsmanager_secret.mysql-secret.id
+  secret_string = data.aws_secretsmanager_random_password.db-password.random_password
+}
+
+//creating subnet group 
+resource "aws_db_subnet_group" "database" {
+  name       = "database-sgb"
+  subnet_ids = [aws_subnet.pet-prisub-1.id, aws_subnet.pet-prisub-2.id]
+
+  tags = {
+    Name = "${local.name}- db-subnet"
+  }
+}
+
+//creating RDS database 
+resource "aws_db_instance" "pet-clinic-db" {
+  identifier             = var.db-identifier
+  db_subnet_group_name   = aws_db_subnet_group.database.name
+  vpc_security_group_ids = [aws_security_group.rds-sg.id]
+  allocated_storage      = 10
+  db_name                = var.dbname
+  engine                 = "mysql"
+  engine_version         = "5.7"
+  instance_class         = "db.t3.micro"
+  username               = var.dbusername
+  password               = aws_secretsmanager_secret_version.dbase-secret.secret_string
+  parameter_group_name   = "default.mysql5.7"
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+  storage_type           = "gp2"
+}
+
+#creating rds security group 
+resource "aws_security_group" "rds-sg" {
+  name        = "rds-sg"
+  description = "allowing outbound traffic"
+  vpc_id      = aws_vpc.pet-vpc.id
+
+  ingress {
+    description     = "MYSQL"
+    protocol        = "tcp"
+    from_port       = var.mysqlport
+    to_port         = var.mysqlport
+    security_groups = [aws_security_group.pet_ansible_bastion_sg.id, aws_security_group.pet_docker_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.all_cidr_blocks]
+    description = "allow all traffic"
+  }
+  tags = {
+    name = "rds-sg"
+  }
+}
